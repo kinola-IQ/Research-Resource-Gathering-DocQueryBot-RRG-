@@ -1,3 +1,4 @@
+#loading relevant libraries
 import os
 import streamlit as st 
 from langchain_groq import ChatGroq
@@ -9,7 +10,8 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-from dotenv import load_dotenv # load environmments an all it's components
+# load environmments an all it's components
+from dotenv import load_dotenv
 import time
 
 load_dotenv()
@@ -37,7 +39,7 @@ prompt= ChatPromptTemplate.from_template(
     )
 payload = st.text_input("enter the documents ou want to embed (pdf only)")
 
-
+#defining vector store to store documents
 def vector_embedding():
     if "vectors" not in st.session_state:
         st.session_state.embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
@@ -46,16 +48,19 @@ def vector_embedding():
         st.session_state.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000,chunk_overlap=200) #tokenization
         st.session_state.final = st.session_state.text_splitter.split_documents(st.session_state.docs)
         st.session_state.vectors = FAISS.from_documents(st.session_state.final, st.session_state.embeddings) #vectorization
-        
+
+#loagging user interaction
 def log_history(query,response):
     if "history" not in st.session_state:
         st.session_state.history = []
     st.session_state.history.append({"query":query,"response":response})
 
 
-prompt1 = st.text_input("what do you wanna know?")
+prompt1 = st.text_input("what do you wanna know?") #this accepts user input
 
-col1, col2 = st.columns([3, 1]) # fro the buttons
+col1, col2 = st.columns([3, 1]) # for the buttons
+
+#button to log activity/interaction on click
 with col1:
     if st.button("history"):
         if "history" in st.session_state:
@@ -66,20 +71,20 @@ with col1:
         else:
             st.write("No query history available.")    
 
-
+#button to activate the vector embedding on-click
 with col2:  
     if st.button("vector store"):
         vector_embedding()
         st.write("vector_db is ready")
 
-
+#creating retriever
 if prompt1:
     document_chain = create_stuff_documents_chain(llm, prompt)
-    #creating retriever
+    
     retriever = st.session_state.vectors.as_retriever()
     retrieval_chain  = create_retrieval_chain(retriever,document_chain)
     
-    start = time.process_time()
+    start = time.process_time() #monitoring operation time
     response = retrieval_chain.invoke({"input":prompt1})
     log_history(prompt1, response['answer'])
     st.write(response['answer'])
@@ -87,7 +92,7 @@ if prompt1:
     
     
     
-    #with streamlit expander
+    #with streamlit expander for document similarity search
     with st.expander("doc similarity search"):
         #find relevant chunks
         for i,doc in enumerate(response['context']):
